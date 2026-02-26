@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brain Battle: Education Edition</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #050510;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Press Start 2P', monospace;
+    overflow-x: hidden;
+  }
+
+  #game {
+    width: 100%;
+    max-width: 480px;
+    min-height: 620px;
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+    border: 3px solid #4B0082;
+    box-shadow: 0 0 40px rgba(75, 0, 130, 0.4);
+  }
+
+  .screen { display: none; flex-direction: column; min-height: 620px; }
+  .screen.active { display: flex; }
+
+  /* ===== TITLE SCREEN ===== */
+  #title-screen {
+    background: linear-gradient(180deg, #0a0a1a 0%, #1a0a2e 40%, #2d1b69 100%);
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    position: relative;
+  }
+  .star {
+    position: absolute;
+    background: #fff;
+    border-radius: 50%;
+    animation: pulse 3s ease-in-out infinite;
+  }
+  .title-emoji { font-size: 40px; margin-bottom: 8px; animation: float 3s ease-in-out infinite; }
+  .title-main { font-size: 18px; color: #FFD700; text-align: center; line-height: 1.8; animation: glow 3s ease-in-out infinite; }
+  .title-sub { font-size: 22px; color: #FF6B35; text-align: center; line-height: 1.8; animation: glow 3s ease-in-out infinite; }
+  .title-edition { font-size: 10px; color: #A78BFA; margin-bottom: 30px; letter-spacing: 2px; }
+  .title-mons { display: flex; gap: 16px; margin-bottom: 30px; }
+  .title-mon { font-size: 24px; }
+  .title-hint { font-size: 7px; color: #666; margin-top: 24px; text-align: center; line-height: 2.2; }
+
+  .btn-start {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 12px;
+    padding: 14px 32px;
+    background: linear-gradient(135deg, #FF6B35, #FFD700);
+    color: #1a0a2e;
+    border: 3px solid #FFD700;
+    border-radius: 8px;
+    cursor: pointer;
+    animation: pulse 2s ease-in-out infinite;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+    transition: transform 0.2s;
+  }
+  .btn-start:hover { transform: scale(1.05); }
+
+  /* ===== SELECT SCREEN ===== */
+  #select-screen {
+    background: linear-gradient(180deg, #0a0a1a 0%, #1a0a2e 50%, #0a1628 100%);
+    padding: 20px;
+  }
+  .select-title { font-size: 12px; color: #FFD700; text-align: center; margin-bottom: 20px; text-shadow: 0 0 10px #FFD70066; }
+  .select-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .pokemon-card {
+    background: rgba(255,255,255,0.03);
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    padding: 14px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    animation: slideUp 0.4s ease-out both;
+  }
+  .pokemon-card:hover { transform: translateY(-3px); }
+  .pokemon-card .emoji { font-size: 28px; margin-bottom: 6px; }
+  .pokemon-card .name { font-size: 8px; color: #fff; margin-bottom: 6px; }
+  .pokemon-card .stats { font-size: 6px; color: #999; margin-top: 6px; line-height: 1.8; }
+
+  .type-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: #fff;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 7px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
+  }
+
+  /* ===== BATTLE SCREEN ===== */
+  #battle-screen {
+    background: linear-gradient(180deg, #87CEEB 0%, #98FB98 40%, #90EE90 100%);
+  }
+  .battle-top-bar {
+    padding: 10px 14px;
+    background: rgba(0,0,0,0.15);
+  }
+  .battle-top-bar .info { display: flex; justify-content: space-between; font-size: 7px; color: #333; margin-bottom: 4px; }
+  .xp-bar-outer { width: 100%; height: 6px; background: #1a1a2e; border-radius: 3px; border: 1px solid #333; overflow: hidden; }
+  .xp-bar-inner { height: 100%; background: linear-gradient(90deg, #60A5FA, #A78BFA); border-radius: 3px; transition: width 0.5s; }
+
+  .battle-field { flex: 1; position: relative; padding: 16px; min-height: 280px; }
+
+  .pokemon-display { position: absolute; display: flex; flex-direction: column; gap: 8px; }
+  .pokemon-display.enemy { top: 16px; right: 16px; align-items: flex-end; }
+  .pokemon-display.player { bottom: 16px; left: 16px; }
+  .pokemon-info { width: 160px; }
+  .pokemon-info .name-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .pokemon-info .name-row .name { font-size: 8px; color: #333; }
+
+  .hp-bar-label { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 9px; }
+  .hp-bar-label .lbl { color: #fff; text-shadow: 1px 1px 0 #000; }
+  .hp-bar-label .val { text-shadow: 1px 1px 0 #000; }
+  .hp-bar-outer { width: 100%; height: 14px; background: #1a1a2e; border-radius: 7px; border: 2px solid #333; overflow: hidden; }
+  .hp-bar-inner { height: 100%; border-radius: 5px; transition: width 0.6s ease-out; }
+
+  .sprite-container {
+    width: 80px; height: 80px; position: relative;
+    transition: all 0.3s;
+  }
+  .sprite-container.floating { animation: float 3s ease-in-out infinite; }
+  .sprite-container.shake { animation: shake 0.4s ease-in-out; }
+  .sprite-container.attack-right { animation: attackRight 0.4s ease-in-out; }
+  .sprite-container.attack-left { animation: attackLeft 0.4s ease-in-out; }
+  .sprite-container.faint { animation: faintAnim 0.8s ease-in forwards; }
+  .sprite-container.enemy-sprite { transform: scaleX(-1); }
+
+  .effectiveness-popup {
+    position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 10px; font-weight: bold; z-index: 10;
+    animation: superEffective 1s ease-out forwards;
+    text-shadow: 0 0 10px rgba(0,0,0,0.3);
+    pointer-events: none;
+    display: none;
+  }
+  .effectiveness-popup.super { display: block; color: #FF4444; }
+  .effectiveness-popup.weak { display: block; color: #888; }
+
+  .message-box {
+    margin: 0 14px; padding: 12px;
+    background: rgba(255,255,255,0.9);
+    border-radius: 8px; border: 2px solid #333;
+    min-height: 40px; display: flex; align-items: center;
+  }
+  .message-box p { font-size: 8px; color: #333; line-height: 1.8; }
+
+  .moves-panel {
+    padding: 14px;
+    background: #1a1a2e;
+  }
+  .moves-label { font-size: 7px; color: #888; margin-bottom: 8px; }
+  .moves-label.special-ready { color: #FFD700; }
+  .moves-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .move-btn {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 7px;
+    padding: 10px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    color: #E0E0FF;
+    line-height: 1.8;
+  }
+  .move-btn:hover:not(:disabled) { transform: translateY(-2px); }
+  .move-btn:disabled { cursor: not-allowed; opacity: 0.4; }
+  .move-btn.special { grid-column: 1 / -1; }
+  .move-btn .pwr { font-size: 6px; color: #888; }
+
+  /* ===== QUESTION SCREEN ===== */
+  #question-screen {
+    background: linear-gradient(180deg, #0a0a1a 0%, #0a1628 100%);
+    padding: 20px;
+  }
+  .q-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .q-subject { padding: 4px 10px; border-radius: 6px; font-size: 7px; }
+  .q-streak { font-size: 7px; color: #FFD700; }
+  .q-move-label { text-align: center; padding: 8px 0; margin-bottom: 12px; font-size: 8px; }
+  .q-box {
+    background: linear-gradient(135deg, #1a1a3e, #0f0f2e);
+    border: 2px solid #333;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    animation: slideUp 0.3s ease-out;
+  }
+  .q-box .text { font-size: 10px; color: #E0E0FF; line-height: 2; text-align: center; }
+
+  .q-feedback {
+    text-align: center; padding: 12px; margin-bottom: 8px; border-radius: 8px;
+    animation: slideUp 0.3s ease-out;
+    display: none;
+  }
+  .q-feedback.show { display: block; }
+  .q-feedback.correct { background: rgba(34,197,94,0.15); border: 2px solid #22c55e; }
+  .q-feedback.wrong { background: rgba(239,68,68,0.15); border: 2px solid #ef4444; }
+  .q-feedback .icon { font-size: 18px; margin-bottom: 4px; }
+  .q-feedback .msg { font-size: 8px; line-height: 1.8; }
+
+  .q-options { display: flex; flex-direction: column; gap: 10px; }
+  .q-option {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #1a1a3e, #2a1a4e);
+    color: #E0E0FF;
+    border: 2px solid #444;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    line-height: 1.8;
+    transition: all 0.15s;
+    animation: slideUp 0.3s ease-out both;
+  }
+  .q-option:hover { transform: translateX(4px); }
+  .q-option .letter { margin-right: 10px; }
+
+  .q-hint-area { margin-top: 12px; text-align: center; }
+  .btn-hint {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 7px;
+    padding: 6px 14px;
+    background: none;
+    color: #666;
+    border: 1px solid #333;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .hint-text {
+    font-size: 7px; color: #FBBF24; line-height: 1.8;
+    padding: 6px 14px; background: #FBBF2411;
+    border-radius: 4px; border: 1px solid #FBBF2433;
+    display: none;
+  }
+  .hint-text.show { display: block; }
+
+  /* ===== VICTORY / GAMEOVER ===== */
+  #victory-screen {
+    background: linear-gradient(180deg, #0a0a1a 0%, #1a2a0a 50%, #0a1a0a 100%);
+    border-color: #4ADE80;
+    align-items: center; justify-content: center;
+    padding: 24px; text-align: center;
+  }
+  #gameover-screen {
+    background: linear-gradient(180deg, #0a0a1a 0%, #2a0a0a 50%, #1a0a0a 100%);
+    border-color: #EF4444;
+    align-items: center; justify-content: center;
+    padding: 24px; text-align: center;
+  }
+  .result-icon { font-size: 48px; margin-bottom: 16px; animation: slideUp 0.5s ease-out; }
+  .result-title { font-size: 16px; margin-bottom: 8px; animation: slideUp 0.5s ease-out 0.1s both; }
+  .result-text { font-size: 8px; margin-bottom: 16px; line-height: 2; animation: slideUp 0.5s ease-out 0.2s both; }
+  .result-stats {
+    background: rgba(255,255,255,0.05); border-radius: 12px;
+    padding: 20px; margin-bottom: 24px; border: 1px solid #333;
+    font-size: 8px; line-height: 2.5; color: #aaa;
+    animation: slideUp 0.5s ease-out 0.2s both;
+  }
+  .result-btns { display: flex; gap: 12px; animation: slideUp 0.5s ease-out 0.3s both; }
+  .btn-next {
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #4ADE80, #22c55e);
+    color: #0a1a0a; border: 2px solid #4ADE80;
+    border-radius: 8px; cursor: pointer;
+  }
+  .btn-quit {
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    padding: 12px 20px;
+    background: transparent;
+    color: #666; border: 2px solid #444;
+    border-radius: 8px; cursor: pointer;
+  }
+  .btn-retry {
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    padding: 14px 28px;
+    background: linear-gradient(135deg, #EF4444, #DC2626);
+    color: #fff; border: 2px solid #EF4444;
+    border-radius: 8px; cursor: pointer;
+  }
+
+  /* ===== SPRITE SHAPES ===== */
+  .sprite-body { position: absolute; border-radius: 50% 50% 40% 40%; }
+  .sprite-ear { position: absolute; border-radius: 50% 50% 20% 20%; }
+  .sprite-eye { position: absolute; background: #fff; border-radius: 50%; }
+  .sprite-pupil { position: absolute; background: #333; border-radius: 50%; }
+
+  /* ===== ANIMATIONS ===== */
+  @keyframes pulse { 0%,100%{opacity:0.6} 50%{opacity:1} }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+  @keyframes glow { 0%,100%{text-shadow:0 0 20px #FFD700, 0 0 40px #FF6B35} 50%{text-shadow:0 0 30px #FFD700, 0 0 60px #FF6B35, 0 0 80px #FF6B3544} }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+  @keyframes attackRight { 0%{transform:translateX(0)} 50%{transform:translateX(40px)} 100%{transform:translateX(0)} }
+  @keyframes attackLeft { 0%{transform:scaleX(-1) translateX(0)} 50%{transform:scaleX(-1) translateX(40px)} 100%{transform:scaleX(-1) translateX(0)} }
+  @keyframes faintAnim { 0%{opacity:1;transform:translateY(0)} 100%{opacity:0;transform:translateY(30px)} }
+  @keyframes superEffective { 0%{opacity:1;transform:translate(-50%,-50%) scale(1)} 100%{opacity:0;transform:translate(-50%,-50%) scale(2)} }
+  @keyframes slideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes sparkle { 0%,100%{opacity:0;transform:scale(0)} 50%{opacity:1;transform:scale(1)} }
+</style>
+</head>
+<body>
+
+<div id="game">
+
+  <!-- TITLE SCREEN -->
+  <div id="title-screen" class="screen active">
+    <div class="title-emoji">⚔️</div>
+    <div class="title-main">BRAIN</div>
+    <div class="title-sub">BATTLE</div>
+    <div class="title-edition">EDUCATION EDITION</div>
+    <div class="title-mons">
+      <span class="title-mon" style="animation:float 2s ease-in-out infinite">🔥</span>
+      <span class="title-mon" style="animation:float 2.3s ease-in-out infinite; animation-delay:0.2s">🌊</span>
+      <span class="title-mon" style="animation:float 2.6s ease-in-out infinite; animation-delay:0.4s">⚡</span>
+      <span class="title-mon" style="animation:float 2.9s ease-in-out infinite; animation-delay:0.6s">🌿</span>
+      <span class="title-mon" style="animation:float 3.2s ease-in-out infinite; animation-delay:0.8s">❄️</span>
+      <span class="title-mon" style="animation:float 3.5s ease-in-out infinite; animation-delay:1s">🌑</span>
+    </div>
+    <button class="btn-start" onclick="startGame()">START GAME</button>
+    <div class="title-hint">Answer questions to power up attacks!<br>Defeat wild Pokemon to level up!</div>
+  </div>
+
+  <!-- SELECT SCREEN -->
+  <div id="select-screen" class="screen">
+    <div class="select-title">CHOOSE YOUR PARTNER</div>
+    <div class="select-grid" id="select-grid"></div>
+  </div>
+
+  <!-- BATTLE SCREEN -->
+  <div id="battle-screen" class="screen">
+    <div class="battle-top-bar">
+      <div class="info">
+        <span id="battle-level-info"></span>
+        <span id="battle-streak-info"></span>
+      </div>
+      <div class="xp-bar-outer">
+        <div class="xp-bar-inner" id="xp-bar"></div>
+      </div>
+    </div>
+    <div class="battle-field">
+      <!-- Enemy -->
+      <div class="pokemon-display enemy">
+        <div class="pokemon-info">
+          <div class="name-row">
+            <span class="name" id="enemy-name"></span>
+            <span class="type-badge" id="enemy-type-badge"></span>
+          </div>
+          <div class="hp-bar-label">
+            <span class="lbl">HP</span>
+            <span class="val" id="enemy-hp-text"></span>
+          </div>
+          <div class="hp-bar-outer">
+            <div class="hp-bar-inner" id="enemy-hp-bar"></div>
+          </div>
+        </div>
+        <div class="sprite-container floating enemy-sprite" id="enemy-sprite"></div>
+      </div>
+
+      <div class="effectiveness-popup" id="eff-popup"></div>
+
+      <!-- Player -->
+      <div class="pokemon-display player">
+        <div class="sprite-container floating" id="player-sprite"></div>
+        <div class="pokemon-info">
+          <div class="name-row">
+            <span class="name" id="player-name"></span>
+            <span class="type-badge" id="player-type-badge"></span>
+          </div>
+          <div class="hp-bar-label">
+            <span class="lbl">HP</span>
+            <span class="val" id="player-hp-text"></span>
+          </div>
+          <div class="hp-bar-outer">
+            <div class="hp-bar-inner" id="player-hp-bar"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="message-box">
+      <p id="battle-message"></p>
+    </div>
+
+    <div class="moves-panel">
+      <div class="moves-label" id="moves-label">CHOOSE YOUR MOVE:</div>
+      <div class="moves-grid" id="moves-grid"></div>
+    </div>
+  </div>
+
+  <!-- QUESTION SCREEN -->
+  <div id="question-screen" class="screen">
+    <div class="q-header">
+      <div class="q-subject" id="q-subject"></div>
+      <div class="q-streak" id="q-streak"></div>
+    </div>
+    <div class="q-move-label" id="q-move-label"></div>
+    <div class="q-box">
+      <div class="text" id="q-text"></div>
+    </div>
+    <div class="q-feedback" id="q-feedback">
+      <div class="icon" id="q-feedback-icon"></div>
+      <div class="msg" id="q-feedback-msg"></div>
+    </div>
+    <div class="q-options" id="q-options"></div>
+    <div class="q-hint-area">
+      <button class="btn-hint" id="btn-hint" onclick="showHint()">💡 HINT</button>
+      <div class="hint-text" id="hint-text"></div>
+    </div>
+  </div>
+
+  <!-- VICTORY SCREEN -->
+  <div id="victory-screen" class="screen">
+    <div class="result-icon">🏆</div>
+    <div class="result-title" style="color:#4ADE80">VICTORY!</div>
+    <div class="result-text" style="color:#90EE90" id="victory-text"></div>
+    <div class="result-btns">
+      <button class="btn-next" onclick="nextBattle()">NEXT BATTLE →</button>
+      <button class="btn-quit" onclick="resetGame()">QUIT</button>
+    </div>
+  </div>
+
+  <!-- GAME OVER SCREEN -->
+  <div id="gameover-screen" class="screen">
+    <div class="result-icon">💫</div>
+    <div class="result-title" style="color:#EF4444">GAME OVER</div>
+    <div class="result-text" style="color:#F87171" id="gameover-text"></div>
+    <div class="result-stats" id="gameover-stats"></div>
+    <button class="btn-retry" onclick="resetGame()">TRY AGAIN</button>
+  </div>
+
+</div>
+
+<script>
+// ===== DATA =====
+const POKEMON_DATA = [
+  { name:"Flamarion", type:"fire", color:"#FF6B35", emoji:"🔥", maxHp:120, attack:18, defense:12 },
+  { name:"Aquarex", type:"water", color:"#1E90FF", emoji:"🌊", maxHp:130, attack:15, defense:15 },
+  { name:"Thornix", type:"grass", color:"#32CD32", emoji:"🌿", maxHp:110, attack:20, defense:10 },
+  { name:"Voltarc", type:"electric", color:"#FFD700", emoji:"⚡", maxHp:100, attack:22, defense:8 },
+  { name:"Glaciora", type:"ice", color:"#87CEEB", emoji:"❄️", maxHp:115, attack:16, defense:14 },
+  { name:"Shadrix", type:"dark", color:"#8B5CF6", emoji:"🌑", maxHp:105, attack:21, defense:9 },
+];
+
+const ENEMY_POKEMON = [
+  { name:"Cinders", type:"fire", color:"#FF4500", emoji:"🔥", maxHp:90, attack:14, defense:10 },
+  { name:"Ripplefin", type:"water", color:"#4169E1", emoji:"🌊", maxHp:95, attack:12, defense:12 },
+  { name:"Mossbite", type:"grass", color:"#228B22", emoji:"🌿", maxHp:85, attack:16, defense:8 },
+  { name:"Sparkpaw", type:"electric", color:"#DAA520", emoji:"⚡", maxHp:80, attack:18, defense:7 },
+  { name:"Frostveil", type:"ice", color:"#5F9EA0", emoji:"❄️", maxHp:100, attack:13, defense:13 },
+  { name:"Gloomfang", type:"dark", color:"#6A0DAD", emoji:"🌑", maxHp:88, attack:17, defense:9 },
+  { name:"Blazetail", type:"fire", color:"#DC143C", emoji:"🔥", maxHp:110, attack:15, defense:11 },
+  { name:"Tideclaw", type:"water", color:"#0077BE", emoji:"🌊", maxHp:105, attack:14, defense:14 },
+];
+
+const MOVES = {
+  fire: [
+    { name:"Flame Burst", power:25, type:"fire" },
+    { name:"Ember Strike", power:15, type:"fire" },
+    { name:"Inferno Blitz", power:35, type:"fire", special:true },
+  ],
+  water: [
+    { name:"Hydro Splash", power:25, type:"water" },
+    { name:"Bubble Beam", power:15, type:"water" },
+    { name:"Tidal Crush", power:35, type:"water", special:true },
+  ],
+  grass: [
+    { name:"Vine Whip", power:25, type:"grass" },
+    { name:"Leaf Blade", power:15, type:"grass" },
+    { name:"Solar Storm", power:35, type:"grass", special:true },
+  ],
+  electric: [
+    { name:"Thunder Bolt", power:25, type:"electric" },
+    { name:"Spark Jab", power:15, type:"electric" },
+    { name:"Lightning Fury", power:35, type:"electric", special:true },
+  ],
+  ice: [
+    { name:"Frost Bite", power:25, type:"ice" },
+    { name:"Ice Shard", power:15, type:"ice" },
+    { name:"Blizzard Rage", power:35, type:"ice", special:true },
+  ],
+  dark: [
+    { name:"Shadow Claw", power:25, type:"dark" },
+    { name:"Dark Pulse", power:15, type:"dark" },
+    { name:"Void Crush", power:35, type:"dark", special:true },
+  ],
+};
+
+const QUESTIONS = [
+  { q:"What is 3/4 + 1/2?", options:["5/4","4/6","1","3/8"], answer:0, subject:"Math", hint:"Find a common denominator first!" },
+  { q:"What is 15% of 200?", options:["25","30","35","20"], answer:1, subject:"Math", hint:"15% = 0.15, multiply!" },
+  { q:"Solve: 3x + 7 = 22", options:["x = 3","x = 5","x = 7","x = 4"], answer:1, subject:"Math", hint:"Subtract 7 from both sides first." },
+  { q:"What is the area of a triangle with base 10 and height 6?", options:["60","30","16","36"], answer:1, subject:"Math", hint:"Area = ½ × base × height" },
+  { q:"What is 2³ (2 to the power of 3)?", options:["6","8","9","12"], answer:1, subject:"Math", hint:"Multiply 2 × 2 × 2" },
+  { q:"Which fraction is equivalent to 0.75?", options:["1/2","2/3","3/4","4/5"], answer:2, subject:"Math", hint:"Think about quarters!" },
+  { q:"What is the GCF of 24 and 36?", options:["6","8","12","4"], answer:2, subject:"Math", hint:"List all factors of each number." },
+  { q:"If a rectangle has perimeter 30 and width 5, what's the length?", options:["10","15","20","25"], answer:0, subject:"Math", hint:"Perimeter = 2(length + width)" },
+  { q:"What is -8 + 15?", options:["7","-7","23","-23"], answer:0, subject:"Math", hint:"Think of a number line!" },
+  { q:"What is 4/5 as a decimal?", options:["0.45","0.8","0.75","0.84"], answer:1, subject:"Math", hint:"Divide 4 by 5." },
+  { q:"What layer of Earth do we live on?", options:["Mantle","Core","Crust","Magma"], answer:2, subject:"Science", hint:"It's the thinnest outer layer." },
+  { q:"What gas do plants absorb from the air?", options:["Oxygen","Nitrogen","Carbon Dioxide","Hydrogen"], answer:2, subject:"Science", hint:"Plants use this for photosynthesis." },
+  { q:"What type of rock forms from cooled lava?", options:["Sedimentary","Metamorphic","Igneous","Mineral"], answer:2, subject:"Science", hint:"Think about volcanoes!" },
+  { q:"What is the basic unit of life?", options:["Atom","Cell","Molecule","Organ"], answer:1, subject:"Science", hint:"Every living thing is made of these." },
+  { q:"Which planet is known as the Red Planet?", options:["Venus","Jupiter","Mars","Saturn"], answer:2, subject:"Science", hint:"Named after the Roman god of war." },
+  { q:"What force pulls objects toward Earth?", options:["Friction","Magnetism","Gravity","Inertia"], answer:2, subject:"Science", hint:"Newton and the apple!" },
+  { q:"What is H₂O?", options:["Hydrogen gas","Water","Oxygen","Helium"], answer:1, subject:"Science", hint:"2 hydrogen atoms + 1 oxygen atom" },
+  { q:"What organ pumps blood through your body?", options:["Brain","Lungs","Heart","Liver"], answer:2, subject:"Science", hint:"It beats about 100,000 times a day!" },
+  { q:"What is a synonym for 'enormous'?", options:["Tiny","Gigantic","Fast","Bright"], answer:1, subject:"English", hint:"It means very, very big." },
+  { q:"Which word is an adverb?", options:["Quickly","Beautiful","Dog","Happy"], answer:0, subject:"English", hint:"Adverbs often end in -ly." },
+  { q:"What is the subject in: 'The clever fox jumped over the fence'?", options:["Fence","Jumped","Fox","Clever"], answer:2, subject:"English", hint:"Who is doing the action?" },
+  { q:"'Their', 'there', and 'they're' are examples of what?", options:["Synonyms","Antonyms","Homophones","Metaphors"], answer:2, subject:"English", hint:"They sound the same but mean different things." },
+  { q:"What literary device is: 'The wind whispered through the trees'?", options:["Simile","Metaphor","Personification","Alliteration"], answer:2, subject:"English", hint:"Can wind really whisper?" },
+  { q:"What is the plural of 'mouse'?", options:["Mouses","Mice","Mousies","Mouse"], answer:1, subject:"English", hint:"This is an irregular plural!" },
+  { q:"Which sentence uses a comma correctly?", options:["I like dogs, cats, and birds.","I like, dogs cats and birds.","I like dogs cats, and birds.","I, like dogs cats and birds."], answer:0, subject:"English", hint:"Think about the Oxford comma in lists." },
+  { q:"Which ancient civilization built the pyramids?", options:["Romans","Greeks","Egyptians","Mayans"], answer:2, subject:"History", hint:"Think about the Nile River." },
+  { q:"What are the three branches of US government?", options:["Army, Navy, Air Force","Executive, Legislative, Judicial","State, Local, Federal","Democratic, Republican, Independent"], answer:1, subject:"History", hint:"Checks and balances!" },
+  { q:"What ocean is between the US and Europe?", options:["Pacific","Indian","Arctic","Atlantic"], answer:3, subject:"History", hint:"The Titanic sank in this ocean." },
+  { q:"Who was the first President of the United States?", options:["Abraham Lincoln","Thomas Jefferson","George Washington","John Adams"], answer:2, subject:"History", hint:"He's on the one dollar bill." },
+  { q:"What continent is Brazil on?", options:["Africa","Europe","South America","Asia"], answer:2, subject:"History", hint:"Think about the Amazon rainforest." },
+  { q:"The Declaration of Independence was signed in what year?", options:["1776","1492","1812","1620"], answer:0, subject:"History", hint:"It's the year America celebrates on July 4th." },
+];
+
+const SUBJECT_COLORS = { Math:"#FF6B9D", Science:"#00D4AA", English:"#FFB347", History:"#7B68EE" };
+
+const TYPE_COLORS = { fire:"#FF6B35", water:"#1E90FF", grass:"#32CD32", electric:"#FFD700", ice:"#87CEEB", dark:"#8B5CF6" };
+
+const TYPE_EFFECTIVENESS = {
+  fire:{grass:2,ice:2,water:0.5,fire:0.5},
+  water:{fire:2,grass:0.5,water:0.5,electric:0.5},
+  grass:{water:2,electric:2,fire:0.5,grass:0.5},
+  electric:{water:2,ice:2,grass:0.5,electric:0.5},
+  ice:{grass:2,dark:2,fire:0.5,ice:0.5},
+  dark:{ice:2,fire:2,dark:0.5,grass:0.5},
+};
+
+// ===== GAME STATE =====
+let state = {
+  playerPokemon: null,
+  enemyPokemon: null,
+  playerHp: 0,
+  enemyHp: 0,
+  selectedMove: null,
+  currentQuestion: null,
+  usedQuestions: [],
+  streak: 0,
+  totalCorrect: 0,
+  totalQuestions: 0,
+  xp: 0,
+  level: 1,
+  enemiesDefeated: 0,
+  specialReady: false,
+  movesDisabled: false,
+};
+
+// ===== HELPERS =====
+function $(id) { return document.getElementById(id); }
+function getEff(atkType, defType) { return TYPE_EFFECTIVENESS[atkType]?.[defType] || 1; }
+function rand(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $(id).classList.add('active');
+}
+
+function createSprite(pokemon) {
+  // Simple colored creature using the emoji as fallback
+  return `<div style="width:80px;height:80px;display:flex;align-items:center;justify-content:center;font-size:50px;filter:drop-shadow(0 0 12px ${pokemon.color}66)">${pokemon.emoji}</div>`;
+}
+
+function updateHpBar(barId, textId, current, max) {
+  const pct = clamp((current / max) * 100, 0, 100);
+  const color = pct > 50 ? '#4ADE80' : pct > 20 ? '#FBBF24' : '#EF4444';
+  $(barId).style.width = pct + '%';
+  $(barId).style.background = `linear-gradient(90deg, ${color}, ${color}dd)`;
+  $(barId).style.boxShadow = `0 0 8px ${color}66`;
+  $(textId).textContent = `${Math.max(0, Math.round(current))}/${max}`;
+  $(textId).style.color = color;
+}
+
+function updateXpBar() {
+  const needed = state.level * 100;
+  const pct = (state.xp / needed) * 100;
+  $('xp-bar').style.width = pct + '%';
+  $('battle-level-info').textContent = `LV ${state.level} | XP ${state.xp}/${needed}`;
+  $('battle-streak-info').textContent = `🔥 ${state.streak} | ⚔️ ${state.enemiesDefeated}`;
+}
+
+function spriteAnim(elId, className, duration) {
+  const el = $(elId);
+  el.classList.remove('floating');
+  el.classList.add(className);
+  setTimeout(() => {
+    el.classList.remove(className);
+    el.classList.add('floating');
+  }, duration);
+}
+
+function calcDamage(attacker, defender, move, correct) {
+  const eff = getEff(move.type, defender.type);
+  let base = move.power * (attacker.attack / (defender.defense + 10));
+  if (!correct) base *= 0.3;
+  if (correct && state.streak >= 2) base *= 1.2;
+  base *= eff;
+  return Math.round(base + Math.random() * 4);
+}
+
+function getQuestion() {
+  let available = QUESTIONS.filter((_, i) => !state.usedQuestions.includes(i));
+  if (available.length === 0) {
+    state.usedQuestions = [];
+    available = QUESTIONS;
+  }
+  const pick = available[Math.floor(Math.random() * available.length)];
+  const idx = QUESTIONS.indexOf(pick);
+  state.usedQuestions.push(idx);
+  return pick;
+}
+
+// ===== SCREENS =====
+
+function startGame() {
+  showScreen('select-screen');
+  renderSelectScreen();
+}
+
+function renderSelectScreen() {
+  const grid = $('select-grid');
+  grid.innerHTML = '';
+  POKEMON_DATA.forEach((p, i) => {
+    const card = document.createElement('div');
+    card.className = 'pokemon-card';
+    card.style.animationDelay = (i * 0.1) + 's';
+    card.style.borderColor = p.color + '44';
+    card.onmouseenter = () => { card.style.borderColor = p.color; card.style.boxShadow = `0 0 20px ${p.color}44`; };
+    card.onmouseleave = () => { card.style.borderColor = p.color + '44'; card.style.boxShadow = 'none'; };
+    card.onclick = () => selectPokemon(p);
+    card.innerHTML = `
+      <div class="emoji" style="animation:float ${2.5 + i*0.2}s ease-in-out infinite">${p.emoji}</div>
+      <div class="name">${p.name}</div>
+      <span class="type-badge" style="background:${TYPE_COLORS[p.type]}">${p.type}</span>
+      <div class="stats">HP ${p.maxHp}  ATK ${p.attack}  DEF ${p.defense}</div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function selectPokemon(p) {
+  state.playerPokemon = {...p};
+  state.playerHp = p.maxHp;
+  spawnEnemy();
+  showBattle();
+}
+
+function spawnEnemy() {
+  const scale = 1 + (state.enemiesDefeated * 0.15);
+  const base = rand(ENEMY_POKEMON);
+  state.enemyPokemon = {
+    ...base,
+    maxHp: Math.round(base.maxHp * scale),
+    attack: Math.round(base.attack * scale),
+    defense: Math.round(base.defense * scale),
+  };
+  state.enemyHp = state.enemyPokemon.maxHp;
+}
+
+function showBattle() {
+  showScreen('battle-screen');
+  state.movesDisabled = false;
+  const p = state.playerPokemon;
+  const e = state.enemyPokemon;
+
+  $('player-name').textContent = p.name;
+  $('player-type-badge').textContent = p.type;
+  $('player-type-badge').style.background = TYPE_COLORS[p.type];
+  $('player-sprite').innerHTML = createSprite(p);
+  $('player-sprite').classList.remove('faint');
+  $('player-sprite').classList.add('floating');
+
+  $('enemy-name').textContent = e.name;
+  $('enemy-type-badge').textContent = e.type;
+  $('enemy-type-badge').style.background = TYPE_COLORS[e.type];
+  $('enemy-sprite').innerHTML = createSprite(e);
+  $('enemy-sprite').classList.remove('faint');
+  $('enemy-sprite').classList.add('floating');
+
+  updateHpBar('player-hp-bar','player-hp-text', state.playerHp, p.maxHp);
+  updateHpBar('enemy-hp-bar','enemy-hp-text', state.enemyHp, e.maxHp);
+  updateXpBar();
+
+  $('battle-message').textContent = `A wild ${e.name} appeared!`;
+  renderMoves();
+}
+
+function renderMoves() {
+  const moves = MOVES[state.playerPokemon.type];
+  const grid = $('moves-grid');
+  grid.innerHTML = '';
+
+  const label = $('moves-label');
+  if (state.specialReady) {
+    label.textContent = '⭐ SPECIAL MOVE READY!';
+    label.className = 'moves-label special-ready';
+  } else {
+    label.textContent = 'CHOOSE YOUR MOVE:';
+    label.className = 'moves-label';
+  }
+
+  moves.forEach((move, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'move-btn' + (move.special ? ' special' : '');
+    const disabled = (move.special && !state.specialReady) || state.movesDisabled;
+    btn.disabled = disabled;
+
+    const c = state.playerPokemon.color;
+    if (disabled) {
+      btn.style.background = '#222';
+      btn.style.color = '#444';
+      btn.style.border = '2px solid #333';
+    } else if (move.special && state.specialReady) {
+      btn.style.background = `linear-gradient(135deg, #FFD70033, ${c}33)`;
+      btn.style.color = '#FFD700';
+      btn.style.border = '2px solid #FFD700';
+      btn.style.boxShadow = '0 0 15px #FFD70044';
+    } else {
+      btn.style.background = `linear-gradient(135deg, ${c}22, ${c}11)`;
+      btn.style.border = `2px solid ${c}66`;
+    }
+
+    btn.innerHTML = `${move.special ? '⭐ ' : ''}${move.name}<br><span class="pwr">PWR ${move.power}${move.special ? ' (3 streak)' : ''}</span>`;
+    btn.onclick = () => { if (!disabled) chooseMoveAndAsk(move); };
+    grid.appendChild(btn);
+  });
+}
+
+function chooseMoveAndAsk(move) {
+  state.selectedMove = move;
+  state.currentQuestion = getQuestion();
+  showQuestion();
+}
+
+function showQuestion() {
+  showScreen('question-screen');
+  const q = state.currentQuestion;
+  const sc = SUBJECT_COLORS[q.subject] || '#fff';
+
+  $('q-subject').textContent = q.subject.toUpperCase();
+  $('q-subject').style.background = sc + '22';
+  $('q-subject').style.border = `1px solid ${sc}66`;
+  $('q-subject').style.color = sc;
+
+  $('q-streak').textContent = `🔥 Streak: ${state.streak}`;
+  $('q-move-label').textContent = `${state.playerPokemon.name} is using ${state.selectedMove.name}!`;
+  $('q-move-label').style.color = state.playerPokemon.color;
+  $('q-text').textContent = q.q;
+
+  // Reset feedback
+  $('q-feedback').className = 'q-feedback';
+  $('q-feedback').style.display = 'none';
+
+  // Show hint stuff
+  $('btn-hint').style.display = 'inline-block';
+  $('hint-text').className = 'hint-text';
+  $('hint-text').textContent = '💡 ' + q.hint;
+
+  // Options
+  const optContainer = $('q-options');
+  optContainer.innerHTML = '';
+  optContainer.style.display = 'flex';
+  const letters = ['A','B','C','D'];
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'q-option';
+    btn.style.animationDelay = (i * 0.08) + 's';
+    btn.onmouseenter = () => {
+      btn.style.borderColor = sc;
+      btn.style.background = `linear-gradient(135deg, ${sc}22, ${sc}11)`;
+    };
+    btn.onmouseleave = () => {
+      btn.style.borderColor = '#444';
+      btn.style.background = 'linear-gradient(135deg, #1a1a3e, #2a1a4e)';
+    };
+    btn.onclick = () => handleAnswer(i);
+    btn.innerHTML = `<span class="letter" style="color:${sc}">${letters[i]}</span>${opt}`;
+    optContainer.appendChild(btn);
+  });
+}
+
+function showHint() {
+  $('btn-hint').style.display = 'none';
+  $('hint-text').classList.add('show');
+}
+
+function handleAnswer(idx) {
+  const q = state.currentQuestion;
+  const correct = idx === q.answer;
+
+  state.totalQuestions++;
+  // Disable options
+  $('q-options').style.display = 'none';
+  $('btn-hint').style.display = 'none';
+
+  // Show feedback
+  const fb = $('q-feedback');
+  fb.style.display = 'block';
+
+  if (correct) {
+    state.totalCorrect++;
+    state.streak++;
+    const xpGain = 15 + state.streak * 5;
+    state.xp += xpGain;
+    const needed = state.level * 100;
+    if (state.xp >= needed) {
+      state.xp -= needed;
+      state.level++;
+    }
+    if (state.streak >= 3 && !state.specialReady) {
+      state.specialReady = true;
+    }
+    fb.className = 'q-feedback show correct';
+    $('q-feedback-icon').textContent = '✅';
+    $('q-feedback-msg').style.color = '#4ADE80';
+    $('q-feedback-msg').textContent = `Correct! +${xpGain} XP`;
+  } else {
+    state.streak = 0;
+    state.specialReady = false;
+    fb.className = 'q-feedback show wrong';
+    $('q-feedback-icon').textContent = '❌';
+    $('q-feedback-msg').style.color = '#F87171';
+    $('q-feedback-msg').textContent = `The answer was: ${q.options[q.answer]}`;
+  }
+
+  setTimeout(() => executeBattleTurn(correct), 1200);
+}
+
+function executeBattleTurn(correct) {
+  showBattle();
+  state.movesDisabled = true;
+  renderMoves();
+
+  const move = state.selectedMove;
+  const p = state.playerPokemon;
+  const e = state.enemyPokemon;
+
+  // Player attack
+  const dmg = calcDamage(p, e, move, correct);
+  const eff = getEff(move.type, e.type);
+
+  // Animate player attack
+  spriteAnim('player-sprite', 'attack-right', 400);
+  setTimeout(() => spriteAnim('enemy-sprite', 'shake', 400), 300);
+
+  let effMsg = '';
+  const popup = $('eff-popup');
+  popup.className = 'effectiveness-popup';
+  popup.style.display = 'none';
+  if (eff > 1) {
+    effMsg = " It's super effective!";
+    popup.textContent = 'SUPER EFFECTIVE!';
+    popup.className = 'effectiveness-popup super';
+    popup.style.display = 'block';
+    // Re-trigger animation
+    popup.style.animation = 'none';
+    popup.offsetHeight;
+    popup.style.animation = 'superEffective 1s ease-out forwards';
+  } else if (eff < 1) {
+    effMsg = " Not very effective...";
+    popup.textContent = 'NOT VERY EFFECTIVE...';
+    popup.className = 'effectiveness-popup weak';
+    popup.style.display = 'block';
+    popup.style.animation = 'none';
+    popup.offsetHeight;
+    popup.style.animation = 'superEffective 1s ease-out forwards';
+  }
+
+  const correctTag = correct ? '✅ Correct!' : '❌ Wrong...';
+  $('battle-message').textContent = `${correctTag} ${p.name} used ${move.name}! ${dmg} damage!${effMsg}`;
+
+  state.enemyHp = Math.max(0, state.enemyHp - dmg);
+  updateHpBar('enemy-hp-bar', 'enemy-hp-text', state.enemyHp, e.maxHp);
+  updateXpBar();
+
+  // Check enemy faint
+  if (state.enemyHp <= 0) {
+    setTimeout(() => {
+      $('enemy-sprite').classList.remove('floating');
+      $('enemy-sprite').classList.add('faint');
+      $('battle-message').textContent = `${e.name} fainted! You win!`;
+      state.enemiesDefeated++;
+      setTimeout(() => {
+        $('victory-text').innerHTML = `${e.name} was defeated!<br>Enemies defeated: ${state.enemiesDefeated}<br>Accuracy: ${state.totalQuestions > 0 ? Math.round((state.totalCorrect/state.totalQuestions)*100) : 0}%`;
+        showScreen('victory-screen');
+      }, 1200);
+    }, 800);
+    return;
+  }
+
+  // Enemy counter-attack
+  setTimeout(() => {
+    const eMoves = MOVES[e.type];
+    const eMove = eMoves[Math.floor(Math.random() * 2)];
+    const eDmg = calcDamage(e, p, eMove, true);
+
+    // Animate
+    const es = $('enemy-sprite');
+    es.classList.remove('floating', 'enemy-sprite');
+    es.classList.add('attack-left');
+    setTimeout(() => {
+      es.classList.remove('attack-left');
+      es.classList.add('floating', 'enemy-sprite');
+      spriteAnim('player-sprite', 'shake', 400);
+    }, 300);
+
+    $('battle-message').textContent = `${e.name} used ${eMove.name}! ${eDmg} damage!`;
+    state.playerHp = Math.max(0, state.playerHp - eDmg);
+    updateHpBar('player-hp-bar', 'player-hp-text', state.playerHp, p.maxHp);
+
+    if (state.playerHp <= 0) {
+      setTimeout(() => {
+        $('player-sprite').classList.remove('floating');
+        $('player-sprite').classList.add('faint');
+        $('battle-message').textContent = `${p.name} fainted...`;
+        setTimeout(() => {
+          $('gameover-text').innerHTML = `${p.name} fainted...`;
+          $('gameover-stats').innerHTML = `
+            📊 FINAL STATS<br>
+            <span style="color:#FFD700">Level: ${state.level}</span><br>
+            <span style="color:#4ADE80">Enemies Defeated: ${state.enemiesDefeated}</span><br>
+            <span style="color:#60A5FA">Questions: ${state.totalCorrect}/${state.totalQuestions}</span><br>
+            <span style="color:#A78BFA">Accuracy: ${state.totalQuestions > 0 ? Math.round((state.totalCorrect/state.totalQuestions)*100) : 0}%</span>
+          `;
+          showScreen('gameover-screen');
+        }, 1200);
+      }, 800);
+    } else {
+      // Re-enable moves
+      setTimeout(() => {
+        state.movesDisabled = false;
+        renderMoves();
+      }, 600);
+    }
+  }, 1500);
+}
+
+function nextBattle() {
+  spawnEnemy();
+  showBattle();
+}
+
+function resetGame() {
+  state = {
+    playerPokemon: null, enemyPokemon: null,
+    playerHp: 0, enemyHp: 0,
+    selectedMove: null, currentQuestion: null,
+    usedQuestions: [], streak: 0,
+    totalCorrect: 0, totalQuestions: 0,
+    xp: 0, level: 1, enemiesDefeated: 0,
+    specialReady: false, movesDisabled: false,
+  };
+  showScreen('title-screen');
+}
+
+// Stars on title screen
+(function() {
+  const title = document.getElementById('title-screen');
+  for (let i = 0; i < 25; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    s.style.width = (Math.random()*3+1)+'px';
+    s.style.height = s.style.width;
+    s.style.top = (Math.random()*100)+'%';
+    s.style.left = (Math.random()*100)+'%';
+    s.style.opacity = Math.random()*0.8+0.2;
+    s.style.animationDuration = (Math.random()*3+2)+'s';
+    s.style.animationDelay = (Math.random()*2)+'s';
+    title.appendChild(s);
+  }
+})();
+</script>
+</body>
+</html>
